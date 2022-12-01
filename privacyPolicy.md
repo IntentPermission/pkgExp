@@ -1,1 +1,1 @@
-Privacy policy goes here.
+Privacy <b>policy</b> goes here.
