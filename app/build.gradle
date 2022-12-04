@@ -1,0 +1,27 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    buildToolsVersion "29.0.3"
+
+    defaultConfig {
+        applicationId "org.andr.pkgexp"
+        minSdkVersion 9
+        targetSdkVersion 26  // Was 9
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    lintOptions {
+        disable 'SdCardPath', 'AddJavascriptInterface', 'SetJavaScriptEnabled', 'OldTargetApi',
+                'TrustAllX509TrustManager', 'ExportedService', 'StaticFieldLeak', 'IconLocation',
+                'AllowBackup'
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: "libs", include: ["*.jar"])
+}

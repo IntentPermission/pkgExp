@@ -1,0 +1,13 @@
+.gradle
+.idea
+.settings
+build
+lint.xml
+local.properties
+**/*.iml
+**/.classpath
+**/.project
+**/*.kdev4
+**/.vscode
+keystore.properties
+app/src/main/res/xml/contacts.xml

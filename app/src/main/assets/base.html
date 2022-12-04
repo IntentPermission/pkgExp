@@ -1,0 +1,573 @@
+<html>
+<body style="font-family: arial; background-color: #ddf; width: 512px;">
+
+<!-- Each major div is a 'page', made visible by showPage() -->
+<img src="file:///android_asset/menuIcon.png" xx=file:///android_asset/menuBtn.png onclick="showMenu();"
+  style="width: 20px; float: left; padding-right: 10px;">
+<div id="pages">
+
+<div id="menu" style="display: none; background-color: white;
+  border: 1px solid #88f; margin: 0 0px 8px 24px; padding: 8px; border: 1px solid gray; font-size: larger;">
+  <div action="packages" onclick="menuClick();"><b>Packages</b> -- Show the list of packages</div>
+  <div action="intents" onclick="menuClick();"><b>Intent-filters</b> for all packages</div>
+  <div action="activities" onclick="menuClick();"><b>Activities</b> -- The activities in each packages</div>
+  <div action="permissions" onclick="menuClick();"><b>Permissions</b> -- This packages require this permission</div>
+  <div action="help" onclick="menuClick();"><b>HELP</b> -- show help information</div>
+</div>
+
+<div id="packages">
+  <div id="tally" style="float: right; color: blue;"></div>
+  <h3 onclick="showMenu();">Packages</h3>
+  <div id="pkgList"></div>
+</div>
+
+<div id="intents" style="display: none;">
+  <h3 onclick="showMenu();">Intent-filters</h3>
+  <table id="intentList" fragType="intent" border=0>
+    <tr style="margin-bottom: 14px;" header="">
+      <th onclick="sortTableColumn(event);" align=left>ifType</th>
+      <th onclick="sortTableColumn(event);" align=left>Package</th>
+      <th onclick="sortTableColumn(event);" align=left>Action</th>
+      <th onclick="sortTableColumn(event);" align=left>Category</th>
+      <th onclick="sortTableColumn(event);" align=left>Data</th>
+    </tr>
+  </table>
+</div>
+
+<div id="activities" style="display: none;">
+  <h3 onclick="showMenu();">Activities</h3>
+  <div id="activityList" fragType="activity"></div>
+</div>
+
+<div id="permissions" style="display: none;">
+  <h3 onclick="showMenu();">Uses-permissions</h3>
+  <div id="permissionList" fragType="permission"></div>
+</div>
+
+<div id="help" style="display: none;">
+  <h3 onclick="showMenu();">Help Information</h3>
+  This app looks for .apk files in common locations and scans the
+  AndroidManifest.xml file in each and sorts some of the information in them
+  into lists.
+  <p>
+  The list of apps (.apk files) should appear quickly, however reading and
+  parsing the files seems to be slow.  As each app is processed a blue plus
+  sign will appear by the name to indicate that you can now click on the app 
+  name to see the manifest information.
+  <p>
+  As the apps are processed, a combined list of <i>intent-filter</i>s 
+  <i>uses-permission</i>s <i>activities</i> is generated.  Click the <b>menu</b>
+  key to select these tables.
+  <p>
+  This app searches <b>/system/app</b> and <b>/data/app</b> for <i>.apk</i>
+  files.  One the Evo, without root, /system/app publicly readable, /data/app
+  is not.  If you have root you may see more apps than if you do not.
+  <p>
+  <h4>Where the info is</h4>
+  <ul>
+    <li><b>Packages</b>&nbsp; The main page, lists all packages found, click package
+      name to see manifest information</li>
+    <li><b>Intent-filters</b>&nbsp; Table all intent-filters defined by all apps.
+      Scroll right.  Tap a table column header: package name, intent-filter type, 
+      actions, categories, data fields to sort the table alphabetically by
+      that column value.  Tap the package name to see AndroidManifest for that
+      package.</li>
+    <li><b>Uses-permissions</b>&nbsp; Lists all permissions used by apps, with 
+      the names of the packages that use them.  Tap the package name to see its
+      full manifest.  Common permission names are abbreviated.</li>
+    <li><b>Activities</b>&nbsp; List of all activities grouped by which packages
+      provide them.</li>
+  </ul>
+  <p>
+  <hr>
+  This was developed on an Evo and works pretty well there for me.
+  Report bugs/feature requests to: <b>intentPermission@gmail.com</b> I <i>may</i>
+  find time to fix them.  This program is offered without warranty or guarantee
+  that the information is correct or complete.  
+   
+  <h3>Bugs and Future Work</h3>
+  <ul>
+    <li>Need option to write the manifest files as normal XML, or the tables
+      to /sdcard</li>
+    <li>Need to resolve the value of 'resources'</li> 
+    <li>Some text overflows its box</li>   
+  </ul>
+  
+</div>
+</div>
+<div style="height: 75px;"></div> <!-- padding?? -->
+
+<script>
+  var hello = "(dummy for andr/ssm test initial cmd)";
+var highlightedEle = null;  // Element currently highlighted, or null
+var previousPage = [];  // Array for 'stack' of prior pages to go back to
+function showPage(pageId, eleId) {
+  if (!pageId) {  // No pageId means do the 'back key' operation
+    previousPage.pop();  // Pop the 'current page' id from the list
+    pageId = previousPage.length==0 ? "packages" : previousPage[previousPage.length-1];
+  } else {
+    previousPage.push(pageId);  // Remember this new page as the new previous!
+  }  
+	
+  // Scan all the divs in the 'pages' div, showing only the one we want
+  var ele = document.getElementById("pages").firstChild;
+  while (ele) {
+    if (ele.style) { // Ignore the #text nodes
+      ele.style.display = ele.id==pageId ? "block" : "none";
+    }
+    ele = ele.nextSibling;
+  }
+  
+  // If eleId is specified, highlight that
+  if (highlightedEle) highlightedEle.style.color = "black";
+  if (eleId) {
+    var tog,  ele = highlightedEle = document.getElementById(eleId);
+    if (ele) {
+      ele.style.color = "red";
+      ele.scrollIntoView(true);
+      // If this contains a twisty (a package with manifest, expand the manifest)
+      if ((ele = ele.firstChild)) while (ele) {
+        if (ele.nodeName=="IMG" && (tog = ele.getAttribute("toggle"))) {
+          tog = tog.split(' ');  // tog[1] should be 'none' if it is closed
+          if (tog[1] == "none") {
+            hndTwisty({target: ele});
+          }
+        }
+        ele = ele.nextSibling;
+      } // end of if/while loop scanning for an img ele with toggle attr
+    }
+    
+  } else { // ... no eleId supplied, show the top left of the page.
+    document.body.scrollTop = document.body.scrollLeft = 0;
+  }
+} // end of showPage
+
+  
+function hndTwisty(evt) {
+  var ele = evt.target;  // Title div, or twisty image ele
+  twistyArg = evt;
+  ele = ele.parentNode.firstElementChild;  // Start at top of sibling list
+  var ii, newDisplayState;
+  while (ele) {
+    // Toggle Image -- Find the <img> element and toggle it (Down <-> Right)
+    if (ele.nodeName == "IMG") {
+      // <img> 'toggle' attribute has four tokens:
+      //  currentImageFid currentBodyDisplayStyle altImageFid altBodyDispStyle
+      var tt = ele.getAttribute("toggle").split(" ");
+      newDisplayStyle = tt[3];  // New body element style.display value
+      if ((ii = ele.src.indexOf(tt[0])) >= 0) {  // Find current fid in src
+        ele.src = ele.src.substring(0, ii)+tt[2]+ele.src.substring(ii+tt[0].length);
+      }
+      // Swap the current and alternate state info in the toggle attribute
+      ele.setAttribute("toggle", tt[2]+" "+tt[3]+" "+tt[0]+" "+tt[1]);
+    }
+
+    // Toggle style.display for first sibling div with style.style not null
+    if (ele.style.display != "") {
+      // Change twisty body element display style, usually 'none' <-> 'block'
+      ele.style.display = newDisplayStyle;
+      if (newDisplayStyle == "block") {  // If showing a package maniffest for first time...
+        prt("  hndTwisty, "+newDisplayStyle+", manifestRes '"+ele.manifestRes+"'");
+        if (ele.manifestRes == false) {
+          JavaBase.rebuildManifest(ele.parentNode.pkgPath);  // Request manifest reparsed with resources.arsc
+        }
+      }
+      break;
+    }
+    ele = ele.nextElementSibling;
+  } // end of while loop scanning sibling elements
+} // end of hndTwisty
+
+
+function setPkgCnt(seqn, total) {
+  // Update the total counts
+  document.getElementById("tally").innerHTML = "("+seqn+" of "+total+")";
+  return "setPkgCnt "+seqn+"/"+total;
+} // end of insertManifest
+
+
+function insertTwistyBody(eleId, body, parseManRes, pkgPath) {
+  var ele = document.getElementById(eleId);  // Parent of twisty elements
+  if (pkgPath) {  // If full .apk path name provided, save it for rebuildManifest, resources
+    ele.pkgPath = pkgPath;
+  }
+
+  if (ele!=null && (ele = ele.firstElementChild)) while (ele!=null) {
+    if (ele.nodeName == "IMG") ele.style.display="";  // Reveal twisty arrow
+    if (ele.style.display != "") {  // twisty body div has display none/block
+      ele.innerHTML = body;
+      if (parseManRes != undefined) { // Special for re/display of package manifest
+        ele.manifestRes = parseManRes  // True if manifest includes decoded resources
+      }
+    }
+    ele = ele.nextElementSibling;
+  } // end of while look scanning siblings (within if statement)
+} // end of insertTwistyBody
+
+
+// templateInsert -- Replace strings like '<INSERT title>' in the HTML 
+// 'template' with values from the entry object.
+function templateInsert(templ, entry) {
+  var cont="", last=0, ii=0, jj, kk, tok;
+  if (!templ) {
+    templ = '<div style="border: 1px solid red;">missing template: '
+      +JSON.stringify(entry)+'</div>';
+  }
+
+  try {
+    while ((ii = templ.indexOf("<INSERT", ii)) >= 0) {
+      jj = templ.indexOf('>', ii+7);
+      // Copy the static text preceding the "<INSERT "
+      cont += templ.substring(last, ii);
+      // Get the name of the var to insert (or the insert operation (with '-'))
+      var name = templ.substring(ii+7, jj);
+      if (name.charAt(0) == '-') {
+        if ((kk = (tok = name).indexOf(' ')) > 0) {
+          tok = tok.substring(0, kk);  name = name.substring(kk+1);
+        }
+        if (tok == "-BODY") {
+          prt("UIF INSERT-BODY");            
+        } else if (tok == "-ACTION") {
+          prt("UIF INSERT-etc");
+        } else {
+          prt("templateInsert: Unrecognized insert operation '"
+            +tok+"', in template:\n"+templ);
+        }
+      } else {
+        // Insert the value of that property of the entry
+        name = name.substring(1);  // (Remove leading space from name)
+        name = name.split('.');  // Property can be name.name.name
+        var val = entry;
+        for (kk=0; val && kk<name.length; kk++) {
+          if (name[kk]) val = val[name[kk]];
+        }
+        if (val) cont += val; 
+      }
+      last = ii = jj+1;  // Skip over this <INSERT name> string
+    } // end of while loop inserting content
+  } catch (ex) {
+    debugger;
+  }
+  return cont + templ.substring(last);
+} // end of templateInsert
+
+
+// Special command/eval/response function for use in Android:
+//   webView.loadUrl("javascript:jsCmd('"+cmd+"')");
+// The 'JavaBase.jsResponse' is a mapped function by:
+//   webView.addJavascriptInterface(jsBridge, "JavaBase");
+var prtJSCMD = false;  // Allow printing to be controlled by dbg console
+function jsCmd(cmd, respond) {
+  try {
+    var resp = "(not set)";
+    if (prtJSCMD) prt("  jsCmd: >"+cmd+"<");
+    try {
+      cmd = cmd.replace(/\n/g, "\\n");  // ?? RAF
+      resp = eval(cmd);
+    } catch (ex) {
+      resp = "(ex: "+ex+";\n  cmd: "+cmd+")\n"+showEx(ex);
+    }
+  } catch (ex) {
+    resp = "(Exception: "+ex+")";
+  }
+  if (respond) {
+    return JavaBase.jsResponse(""+resp);
+  } else {
+    prt("  jsCmd resp: >"+resp+"<-"+typeof(resp));
+  }
+} // end of jsCmd
+
+
+function sortTableColumn(evt) {
+  var col = evt.target;  // Remember the <th> (column) that was clicked
+  var headerRow = col.parentNode;
+  // Which column header <td> is this (get an index number)
+  var colIndex=0, ele = headerRow.firstChild;
+  while (ele) {
+    //prt("    colIndex "+colIndex+" "+ele+" "+ele.nodeName+" "+(ele==col));
+    if (ele == col) break;
+    if (ele.nodeName == "TH") colIndex++;	  
+    ele = ele.nextSibling;
+  }
+  var table = headerRow.parentNode;
+  while (table.nodeName != "TABLE") table = table.parentNode;
+  //prt("SORT COL "+col.innerHTML+" "+colIndex+", table "+table.id);
+
+  // Generate an array of objs with info about each row
+  var ii, jj, nd, cols, rows = [];
+  ele = table.firstChild;  // Scan all TD (children of table, not THEAD or #text)
+  while ((ele = ele.nextSibling)) {  // (First time, skips the THEAD section)
+    //prt("    tblChild "+ele);
+    if (ele.nodeName == "TR") {
+      // Create a list of the value of each column in the row
+      cols = [];  // Create a new array instance for each row
+      for (ii=0, jj=0; ii<ele.childNodes.length; ii++) {
+        if ((nd = ele.childNodes[ii]).nodeName=="TD") {
+          cols[ii] = nd.innerHTML;
+        } 
+      } // end of for loop scanning TDs of this row collecting all values
+      //prt("  row"+rows.length+": "+ii+"/"+jj+" "+cols[colIndex]);
+      rows.push({val: cols[colIndex], cols: cols});
+    } // end of handling a TR
+  } // end of while loop scanning all elements
+  
+  // Delete all current rows of the table
+  ele = table.firstChild;
+  for (ii=table.childNodes.length-1; ii>=0; ii--) {
+    if ((nd = table.childNodes[ii]).nodeName=="TR" || nd.nodeType==Node.TEXT_NODE) {
+      table.removeChild(nd);
+    } 
+  }
+  
+  // Sort the array of objs by value
+  sorted = rows = sortObjArray(rows);
+  
+  // Rebuild the table, in sorted order
+  var sect = table.firstChild;
+  for (ii=0;  ii<rows.length; ii++) {
+    //prt("  insRow "+ii+" "+rows[ii].val);
+    var rObj = rows[ii].cols;
+    //var rr = table.insertRow(-1);
+    //for (jj=0; jj<rObj.length; jj++) {
+    //  var cc = rr.insertCell(-1);
+    //  cc.innerHTML = rObj[jj];
+    //  // Use alternating background colors for column visibility
+    //  if ((jj&1) == 1) cc.style.backgroundColor = "white";  
+    //}
+    var obj = { type: 'intent', ifType: rObj[0], pkgName: rObj[1],
+      action: rObj[2], category: rObj[3], data: rObj[4]};
+    prt("    "+ii+" "+JSON.stringify(obj));
+    append("intentList", obj);    
+  }
+} // end of sortTableColumn
+
+
+function testSort() {
+  var tt = [{val: "aa"},{val: "jj", sub:1},{val: "jj", sub:2 },{val: "zz"},
+    {val: "bb"},{val: "tt"},{val: "tt"},{val: "jj", sub:3 },{val: "cc"},
+    {val: "jj", sub:4 }];
+  try {
+    sortObjArray(tt);
+  } catch (ex) {
+    prt("sort err ex: "+ex+" "+showEx(ex));
+  }
+}
+
+
+function sortObjArray(inArr) {
+  // The sorting linked list is made of the objects in the array, we add a 
+  // 'lt' (lessThan) and an 'gt' properties to the object with references to 
+  // the previous and next obj in the sorted chain
+  var ii, here=inArr[0], outArr=[];
+  for (ii=1; ii<inArr.length; ii++) {
+    var nw = inArr[ii];  // 'New' obj to sort
+    // Is the new element to be inserted greater than or equal to 'here'?
+    if (nw.val >= here.val) {  // We are moving UP the list
+      while (true) {  // Traverse the array until we place it somewhere?
+        // Is there another (greater or equal) obj on the list?
+        if (here.gt) {
+          here = here.gt;  // Move down the list and compare again? 
+          if (nw.val >= here.val) {
+            continue;  // New is even greater than here, continue moving down
+          } else {
+            // New is less than this, insert it before here
+            nw.gt = here;  nw.lt = here.lt;  // Set new guy's double links
+            here.lt = nw;  nw.lt.gt = nw;    // Set old guy's double links
+            break;
+          } 
+        } else {
+          // New ele is greater than any on the list, insert it here.
+          here.gt = nw;  nw.lt = here;
+          break;  // We are done inserting this entry
+        }
+      } // end of while true loop
+
+    } else {  // We are moving down (to lower values) the chain
+      while (true) {  // Traverse the array until we place it somewhere?
+        // Is there something even less that this obj on the list?
+        if (here.lt) {
+          here = here.lt;  // Move up the list and compare again
+          if (nw.val < here.val) {
+            continue;  // New is even less than here, continue moving up
+          } else {
+            // New is greater than or equal this, insert it after here
+            nw.lt = here;  nw.gt = here.gt;  // Set new guy's double links
+            here.gt = nw;  nw.gt.lt = nw;    // Set old guy's double links
+            break;
+          } 
+        } else {
+          // New ele is less than any on the list, insert it here.
+          here.lt = nw;  nw.gt = here;
+          break;  // We are done inserting this entry
+        }
+      } // end of while true loop
+    }
+    // DBG -- print sorted list so far
+    var hh = here, dd = "", ddr="", hhr;
+    while (hh.lt) hh = hh.lt;  // Move to top of list
+    while (hh) {
+      dd += ">"+hh.val;
+      hhr = hh;  hh = hh.gt;
+    }
+    //hh = hhr;
+    //while (hh) {  // Check the back links
+    //  ddr += "<"+hh.val+(hh.sub ? "/"+hh.sub : "");
+    //  hh = hh.lt;
+    //}
+    //prt("** "+ii+" "+nw.val+": "+dd.substring(1))+"\n  "+ddr.substring(1));
+  } // end of for loop inserting all in coming objs in the sorted list
+  
+  // Convert the obj linked list into an array
+  // Move back to the root (lowest) object in the chain
+  while (here.lt) here = here.lt;
+  while (here.gt) {
+    outArr.push(here);
+    here = here.gt;
+  }
+  saveHere = here;
+  return outArr;
+} // end of sortObjArray
+
+
+function append(eleId, str) {
+  if (typeof(str) == "string") {
+    var nd = document.createElement("div");  // Create a new node, as a tmp parent
+    nd.innerHTML = str;  // Allow caller to insert HTML!
+    var par = document.getElementById(eleId);
+    if (par == null) {
+      prt("Can't find ele '"+eleId+"'");
+    } else {
+      par.appendChild(nd);
+    }
+    
+  } else { // 'str' arg is really a javascript object,
+    // Find the fragType of the element being inserted into
+    var ele = document.getElementById(eleId);
+    var ftDef, fType = ele.getAttribute("fragType");
+    if (!fType) {
+      prt("!! No fragType attr on wdg '"+eleId+"'");
+      fType = "deflt";
+    }
+    if (!(ftDef = fragType[fType])) {
+      prt("append: No fragType."+fType+", using deflt");
+      ftDef = fragType.deflt;
+    }
+    
+    var obj = str;  str = JSON.stringify(str);
+    //prt("!! append to '"+eleId+": "+str);
+    if (ftDef.append) {  // If this fragment type has its own append method...
+      //prt("    calling ft.append");
+      ftDef.append.call(ftDef, ele, obj);
+    } else {
+      //prt("    append.insertFrag oTyp "+obj.type+" objDef "+fragType[obj.type]);
+      insertFrag(eleId, fragType[obj.type].template, obj);  // Expand template and insert
+    }
+  }
+  return "append "+eleId
+} // end of append
+
+
+// insertFrag -- Append an instance of a template(tmpl), filled in with data
+// from the object(obj), and append it as the last child of element(with eleId)
+// Ex:  insertFrag("pkgList", template.twisty, {title: "Hello", id: "hi.apk"})
+function insertFrag(eleId, templ, obj) {
+  var newEle = null;
+  // Are we inserting a <tr> (or <td>)?  If so, it must go into a <tbody> nest
+  // On Pixel 4a, div.innerHTML = "<tr>......</tr>" doesn't work, must be a table/tbody
+  var isTable = templ.indexOf("<tr>") >= 0;
+  var nest = document.createElement(isTable ? "tbody" : "div");
+  nest.innerHTML = templateInsert(templ, obj);
+  var par = document.getElementById(eleId);
+  if (par == null) {
+    prt("Can't find ele '"+eleId+"'");
+  } else {
+    par.appendChild(newEle = nest.firstChild);
+  }
+  return newEle;
+} // end of insertFrag
+
+
+// insertPermission -- 'permissionList' is a list of uses-permission names as 
+// headings with a list of package names that use them below.  Each package 
+// name is a link to show the package manifest.
+// Also used for appending Activities.
+// METHOD
+function insertPermission(wEle, obj) {
+  // Find/create the header for this uses-permission type
+  var permEle = document.getElementById("hdr"+obj[this.idField]);
+  if (!permEle) {  // Doesn't exist, create it
+    permEle = insertFrag(wEle.id, this.templateHeading, obj);
+  }
+  // Append this package name to that list
+  return insertFrag(permEle.id, this.templateEntry, obj);
+} // end of insertPermission
+
+
+function showMenu(evt) {
+  menu.style.display = "";  // Show the menu div
+} // end of showMenu
+
+
+function menuClick() {
+  menu.style.display = "none";  // Hide the menu
+  var targ = event.target;
+  var action = targ.getAttribute("action");
+  if (!action) {targ = targ.parentElement;  action = targ.getAttribute("action"); }
+  prt("Menu action "+action);
+  showPage(action);
+} // end of menuClick
+
+
+// Fragment Type Definitions -- templates/widgets for handling them
+var fragType = {};
+fragType.twisty = {template: '<div id="<INSERT id>" fragType="twisty"'
+  +' style="position: relative; white-space: nowrap;">\n'
+  +'  <img src="file:///android_asset/twistyPlus.png" toggle="Plus none Minus block"'
+  +' style="display: none; position: absolute; top: 0; left: 0;"'
+  +' onclick="hndTwisty(event);">\n'
+  +'  <div style="margin-left: 40; height: 40; font-size: 24px;"'
+  +' onclick="hndTwisty(event);"><INSERT title></div>\n'
+  +'  <div style="display: none; white-space: pre; background-color: white;'
+  +' border: 1px solid #88f; margin: 0 4px 8px 4px; padding-bottom: 4px;'
+  +' font-name: courier; color: black; overflow: hidden;"></div>\n'
+  +'</div>\n'};
+fragType.intent = {
+  template: '<tr><td><INSERT ifType></td>'
+    +'<td style="background-color: white;" onclick="showPage(\'packages\', \'<INSERT pkgName>\');"><INSERT pkgName></td>'
+    +'<td><INSERT action></td>'
+    +'<td style="background-color: white;"><INSERT category></td>'
+    +'<td><INSERT data></td>'
+    +'</tr>'
+  };
+fragType.activity = {
+  templateHeading: '<div id="hdr<INSERT pkgName>" onclick="showPage(\'packages\', \'<INSERT pkgName>\');">\n'
+    +'<div style="font-weight: bold; color: blue;"><INSERT pkgName></div>\n</div>\n',
+  templateEntry: '<div onclick="showPage(\'packages\', \'<INSERT pkgName>\');"'
+    +' style="margin-left: 30px;"><INSERT activity></div>\n',
+  append: insertPermission,  // Same function as used for uses-permission
+  idField: 'pkgName'
+};
+fragType.permission = {
+  templateHeading: '<div id="hdr<INSERT usesPermission>">\n'
+    +'<div style="font-weight: bold; color: blue;"><INSERT usesPermission></div>\n</div>\n',
+  templateEntry: '<div onclick="showPage(\'packages\', \'<INSERT pkgName>\');"'
+    +' style="margin-left: 30px;"><INSERT pkgName></div>\n',
+  append: insertPermission,
+  idField: 'usesPermission'
+};
+fragType.deflt = {
+  template: '<div style="border: 1px solid red;">default fragType</div>'
+};
+  
+
+//Helper functions:
+function showEx(ex) {
+  var str = "Ex "+ex.type+": "+ex.message+"\n"+ex.stack+"\nargs: "+ex.args;
+  return str;
+} // end of showEx
+
+
+function prt(str) {  console.log(str);  }
+</script>
+</body>
+</html>
